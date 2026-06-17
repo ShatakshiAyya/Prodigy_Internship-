@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tic-Tac-Toe</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:         #0A0A0F;
+    --panel:      #111118;
+    --border:     #1E1E2E;
+    --border2:    #2A2A3E;
+    --x-color:    #E8445A;
+    --x-glow:     rgba(232,68,90,0.25);
+    --o-color:    #4EAEFF;
+    --o-glow:     rgba(78,174,255,0.25);
+    --text:       #F0F0F8;
+    --dim:        #888899;
+    --subtle:     #44445A;
+    --win-line:   #FFD166;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    overflow-x: hidden;
+  }
+
+  /* subtle grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+  .header h1 span.x { color: var(--x-color); }
+  .header h1 span.o { color: var(--o-color); }
+
+  /* ── MODE SWITCHER ── */
+  .mode-switch {
+    display: flex;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    width: 100%;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 10px 8px;
+    background: none;
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-right: 1px solid var(--border);
+  }
+  .mode-btn:last-child { border-right: none; }
+  .mode-btn.active {
+    background: var(--border2);
+    color: var(--text);
+  }
+  .mode-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.03); }
+
+  /* ── SCOREBOARD ── */
+  .scoreboard {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 24px;
+  }
+
+  .score-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 12px;
+    text-align: center;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .score-card.active-x { border-color: var(--x-color); box-shadow: 0 0 20px var(--x-glow); }
+  .score-card.active-o { border-color: var(--o-color); box-shadow: 0 0 20px var(--o-glow); }
+
+  .score-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 6px;
+  }
+  .score-label span { font-weight: 600; }
+  .score-label .lx { color: var(--x-color); }
+  .score-label .lo { color: var(--o-color); }
+
+  .score-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .score-card:first-child .score-num { color: var(--x-color); }
+  .score-card:last-child  .score-num { color: var(--o-color); }
+
+  .score-mid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .score-mid .vs {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--subtle);
+    letter-spacing: 0.1em;
+  }
+  .draws-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--dim);
+    font-weight: 700;
+  }
+  .draws-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--subtle);
+  }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+  .status-msg {
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--dim);
+    transition: all 0.25s;
+    text-align: center;
+  }
+  .status-msg.win-x { color: var(--x-color); font-size: 1rem; }
+  .status-msg.win-o { color: var(--o-color); font-size: 1rem; }
+  .status-msg.draw  { color: var(--win-line); font-size: 1rem; }
+
+  /* ── BOARD ── */
+  .board-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    margin-bottom: 22px;
+  }
+
+  /* SVG grid lines */
+  .board-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    overflow: visible;
+  }
+
+  .grid-line {
+    stroke: var(--border2);
+    stroke-width: 2;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* win line */
+  .win-line-el {
+    stroke: var(--win-line);
+    stroke-width: 3;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    opacity: 0;
+    transition: opacity 0.2s;
+    filter: drop-shadow(0 0 6px var(--win-line));
+  }
+  .win-line-el.show { opacity: 1; }
+
+  /* cells */
+  .board-grid {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 0;
+  }
+
+  .cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+  }
+  .cell:hover:not(.taken):not(.dead) { background: rgba(255,255,255,0.025); }
+  .cell.taken { cursor: default; }
+  .cell.dead  { cursor: not-allowed; }
+
+  /* hover preview */
+  .cell:not(.taken):not(.dead)::after {
+    content: var(--preview-symbol, '');
+    position: absolute;
+    font-family: 'Space Mono', monospace;
+    font-size: 2.8rem;
+    font-weight: 700;
+    opacity: 0;
+    color: var(--preview-color, white);
+    transition: opacity 0.15s;
+    pointer-events: none;
+  }
+  .cell:not(.taken):not(.dead):hover::after { opacity: 0.18; }
+
+  /* SVG X and O inside cells */
+  .cell-svg {
+    width: 58%;
+    height: 58%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .x-path1, .x-path2 {
+    stroke: var(--x-color);
+    stroke-width: 8;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 200;
+    stroke-dashoffset: 200;
+    filter: drop-shadow(0 0 5px var(--x-color));
+  }
+
+  .o-circle {
+    stroke: var(--o-color);
+    stroke-width: 8;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 251;
+    stroke-dashoffset: 251;
+    filter: drop-shadow(0 0 5px var(--o-color));
+  }
+
+  .draw-x .x-path1 { animation: drawLine 0.22s ease forwards; }
+  .draw-x .x-path2 { animation: drawLine 0.22s 0.15s ease forwards; }
+  .draw-o .o-circle { animation: drawLine 0.3s ease forwards; }
+
+  @keyframes drawLine {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* winning cells pulse */
+  .cell.winner .cell-svg { animation: winPulse 0.6s ease; }
+  @keyframes winPulse {
+    0%  { transform: scale(1); }
+    40% { transform: scale(1.18); }
+    70% { transform: scale(0.94); }
+    100%{ transform: scale(1); }
+  }
+
+  /* ── BUTTONS ── */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 13px 16px;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--dim);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .btn:hover { border-color: var(--border2); background: var(--border2); color: var(--text); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-new {
+    border-color: var(--border2);
+  }
+  .btn-reset {
+    border-color: transparent;
+    color: var(--subtle);
+    background: transparent;
+  }
+  .btn-reset:hover { border-color: var(--border2); background: var(--panel); color: var(--dim); }
+
+  /* ── DIFFICULTY ── */
+  .diff-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    width: 100%;
+  }
+  .diff-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--subtle);
+    white-space: nowrap;
+  }
+  .diff-btns { display: flex; gap: 6px; flex: 1; }
+  .diff-btn {
+    flex: 1;
+    padding: 7px 6px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--subtle);
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .diff-btn.active { background: var(--border2); border-color: var(--border2); color: var(--text); }
+  .diff-btn:hover:not(.active) { color: var(--dim); border-color: var(--border2); }
+
+  .diff-row.hidden { display: none; }
+
+  /* ── TURN INDICATOR DOTS ── */
+  .turn-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 14px;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--subtle);
+    transition: background 0.3s, transform 0.3s;
+  }
+  .dot.active-x { background: var(--x-color); transform: scale(1.4); box-shadow: 0 0 8px var(--x-color); }
+  .dot.active-o { background: var(--o-color); transform: scale(1.4); box-shadow: 0 0 8px var(--o-color); }
+
+  @media (max-width: 380px) {
+    .score-num { font-size: 1.5rem; }
+    .mode-btn  { font-size: 0.7rem; padding: 9px 4px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .draw-x .x-path1, .draw-x .x-path2, .draw-o .o-circle { animation: none; stroke-dashoffset: 0; }
+    .cell.winner .cell-svg { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <h1><span class="x">X</span> · <span class="o">O</span> &nbsp;·&nbsp; TIC TAC TOE</h1>
+  </div>
+
+  <!-- MODE -->
+  <div class="mode-switch">
+    <button class="mode-btn active" data-mode="pvp">👥 2 Players</button>
+    <button class="mode-btn" data-mode="ai">🤖 vs AI</button>
+  </div>
+
+  <!-- DIFFICULTY (AI only) -->
+  <div class="diff-row hidden" id="diff-row">
+    <span class="diff-label">AI Level</span>
+    <div class="diff-btns">
+      <button class="diff-btn" data-diff="easy">Easy</button>
+      <button class="diff-btn active" data-diff="medium">Medium</button>
+      <button class="diff-btn" data-diff="hard">Hard</button>
+    </div>
+  </div>
+
+  <!-- SCORES -->
+  <div class="scoreboard">
+    <div class="score-card" id="score-x">
+      <div class="score-label"><span class="lx">X</span> · Player 1</div>
+      <div class="score-num" id="score-x-num">0</div>
+    </div>
+    <div class="score-mid">
+      <div class="vs">vs</div>
+      <div class="draws-num" id="draws-num">0</div>
+      <div class="draws-label">Draws</div>
+    </div>
+    <div class="score-card" id="score-o">
+      <div class="score-label"><span class="lo">O</span> · <span id="o-label">Player 2</span></div>
+      <div class="score-num" id="score-o-num">0</div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-bar">
+    <p class="status-msg" id="status-msg">X goes first</p>
+  </div>
+
+  <!-- BOARD -->
+  <div class="board-wrap" id="board-wrap">
+    <svg class="board-svg" viewBox="0 0 300 300" preserveAspectRatio="none">
+      <!-- Grid lines -->
+      <line class="grid-line" x1="100" y1="10" x2="100" y2="290"/>
+      <line class="grid-line" x1="200" y1="10" x2="200" y2="290"/>
+      <line class="grid-line" x1="10"  y1="100" x2="290" y2="100"/>
+      <line class="grid-line" x1="10"  y1="200" x2="290" y2="200"/>
+      <!-- Win line -->
+      <line class="win-line-el" id="win-svg-line" x1="0" y1="0" x2="0" y2="0"/>
+    </svg>
+
+    <div class="board-grid" id="board"></div>
+  </div>
+
+  <!-- TURN DOTS -->
+  <div class="turn-dots">
+    <div class="dot active-x" id="dot-x"></div>
+    <div class="dot" id="dot-o"></div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="btn-row" style="margin-top:22px">
+    <button class="btn btn-new" id="btn-new">New Game</button>
+    <button class="btn btn-reset" id="btn-reset">Reset Scores</button>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let board   = Array(9).fill(null); // null | 'X' | 'O'
+let current = 'X';
+let gameOver = false;
+let mode     = 'pvp';   // 'pvp' | 'ai'
+let diff     = 'medium'; // 'easy'|'medium'|'hard'
+let scores   = { X: 0, O: 0, D: 0 };
+let aiThinking = false;
+
+const WINS = [
+  [0,1,2],[3,4,5],[6,7,8], // rows
+  [0,3,6],[1,4,7],[2,5,8], // cols
+  [0,4,8],[2,4,6]          // diags
+];
+
+// Win-line SVG coords [x1,y1,x2,y2] in 300×300 viewBox
+const WIN_COORDS = [
+  [10,50,290,50],[10,150,290,150],[10,250,290,250],
+  [50,10,50,290],[150,10,150,290],[250,10,250,290],
+  [10,10,290,290],[290,10,10,290]
+];
+
+// ═══════════════════════════════════════════
+//  DOM REFS
+// ═══════════════════════════════════════════
+const boardEl   = document.getElementById('board');
+const statusEl  = document.getElementById('status-msg');
+const winLine   = document.getElementById('win-svg-line');
+const dotX      = document.getElementById('dot-x');
+const dotO      = document.getElementById('dot-o');
+const scoreXEl  = document.getElementById('score-x-num');
+const scoreOEl  = document.getElementById('score-o-num');
+const drawsEl   = document.getElementById('draws-num');
+const scoreXCard = document.getElementById('score-x');
+const scoreOCard = document.getElementById('score-o');
+const oLabel    = document.getElementById('o-label');
+const diffRow   = document.getElementById('diff-row');
+
+// ═══════════════════════════════════════════
+//  BUILD BOARD CELLS
+// ═══════════════════════════════════════════
+function buildBoard() {
+  boardEl.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.i = i;
+    cell.style.setProperty('--preview-symbol', current === 'X' ? '"X"' : '"O"');
+    cell.style.setProperty('--preview-color', current === 'X' ? 'var(--x-color)' : 'var(--o-color)');
+
+    // SVG inside cell
+    cell.innerHTML = `
+      <svg class="cell-svg" viewBox="0 0 100 100">
+        <!-- X paths -->
+        <line class="x-path1" x1="15" y1="15" x2="85" y2="85"/>
+        <line class="x-path2" x1="85" y1="15" x2="15" y2="85"/>
+        <!-- O circle -->
+        <circle class="o-circle" cx="50" cy="50" r="34"/>
+      </svg>`;
+
+    // Hide both marks initially
+    const svg = cell.querySelector('.cell-svg');
+    svg.querySelector('.x-path1').style.opacity = '0';
+    svg.querySelector('.x-path2').style.opacity = '0';
+    svg.querySelector('.o-circle').style.opacity = '0';
+
+    cell.addEventListener('click', () => handleClick(i));
+    boardEl.appendChild(cell);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  DRAW MARK
+// ═══════════════════════════════════════════
+function drawMark(idx, player, animate = true) {
+  const cell = boardEl.children[idx];
+  const svg  = cell.querySelector('.cell-svg');
+  cell.classList.add('taken');
+
+  if (player === 'X') {
+    svg.querySelector('.x-path1').style.opacity = '1';
+    svg.querySelector('.x-path2').style.opacity = '1';
+    if (animate) svg.classList.add('draw-x');
+  } else {
+    svg.querySelector('.o-circle').style.opacity = '1';
+    if (animate) svg.classList.add('draw-o');
+  }
+}
+
+// ═══════════════════════════════════════════
+//  HANDLE CLICK
+// ═══════════════════════════════════════════
+function handleClick(i) {
+  if (board[i] || gameOver || aiThinking) return;
+  placeMove(i, current);
+  if (gameOver) return;
+  if (mode === 'ai' && current === 'O') triggerAI();
+}
+
+function placeMove(i, player) {
+  board[i] = player;
+  drawMark(i, player);
+
+  const result = checkResult();
+  if (result) { endGame(result); return; }
+
+  current = current === 'X' ? 'O' : 'X';
+  updateTurnUI();
+}
+
+// ═══════════════════════════════════════════
+//  CHECK RESULT
+// ═══════════════════════════════════════════
+function checkResult() {
+  for (let w = 0; w < WINS.length; w++) {
+    const [a,b,c] = WINS[w];
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      return { winner: board[a], line: w, cells: [a,b,c] };
+    }
+  }
+  if (board.every(v => v)) return { winner: null };
+  return null;
+}
+
+// ═══════════════════════════════════════════
+//  END GAME
+// ═══════════════════════════════════════════
+function endGame(result) {
+  gameOver = true;
+  // disable cells
+  [...boardEl.children].forEach(c => c.classList.add('dead'));
+
+  if (result.winner) {
+    scores[result.winner]++;
+    updateScores();
+
+    // highlight winning cells
+    result.cells.forEach(i => boardEl.children[i].classList.add('winner'));
+
+    // draw win line
+    const [x1,y1,x2,y2] = WIN_COORDS[result.line];
+    winLine.setAttribute('x1', x1); winLine.setAttribute('y1', y1);
+    winLine.setAttribute('x2', x2); winLine.setAttribute('y2', y2);
+    winLine.classList.add('show');
+
+    const who = result.winner === 'X'
+      ? (mode === 'ai' ? '🎉 You win!' : '🎉 Player 1 wins!')
+      : (mode === 'ai' ? '🤖 AI wins!'  : '🎉 Player 2 wins!');
+    setStatus(who, result.winner === 'X' ? 'win-x' : 'win-o');
+  } else {
+    scores.D++;
+    updateScores();
+    setStatus("It's a draw!", 'draw');
+  }
+}
+
+// ═══════════════════════════════════════════
+//  STATUS & TURN UI
+// ═══════════════════════════════════════════
+function setStatus(msg, cls = '') {
+  statusEl.className = 'status-msg ' + cls;
+  statusEl.textContent = msg;
+}
+
+function updateTurnUI() {
+  dotX.className = 'dot' + (current === 'X' ? ' active-x' : '');
+  dotO.className = 'dot' + (current === 'O' ? ' active-o' : '');
+
+  scoreXCard.className = 'score-card' + (current === 'X' ? ' active-x' : '');
+  scoreOCard.className = 'score-card' + (current === 'O' ? ' active-o' : '');
+
+  const xTurn = mode === 'ai' ? 'Your turn (X)' : "X's turn";
+  const oTurn = mode === 'ai' ? 'AI is thinking…' : "O's turn";
+  setStatus(current === 'X' ? xTurn : oTurn);
+
+  // update hover preview on remaining cells
+  [...boardEl.children].forEach(cell => {
+    if (!cell.classList.contains('taken')) {
+      cell.style.setProperty('--preview-symbol', current === 'X' ? '"X"' : '"O"');
+      cell.style.setProperty('--preview-color', current === 'X' ? 'var(--x-color)' : 'var(--o-color)');
+    }
+  });
+}
+
+function updateScores() {
+  scoreXEl.textContent = scores.X;
+  scoreOEl.textContent = scores.O;
+  drawsEl.textContent  = scores.D;
+}
+
+// ═══════════════════════════════════════════
+//  AI ENGINE
+// ═══════════════════════════════════════════
+function triggerAI() {
+  aiThinking = true;
+  [...boardEl.children].forEach(c => { if (!c.classList.contains('taken')) c.classList.add('dead'); });
+
+  const delay = 420 + Math.random() * 280;
+  setTimeout(() => {
+    const move = getAIMove();
+    aiThinking = false;
+    [...boardEl.children].forEach(c => c.classList.remove('dead'));
+    placeMove(move, 'O');
+  }, delay);
+}
+
+function getAIMove() {
+  if (diff === 'easy')   return aiEasy();
+  if (diff === 'medium') return Math.random() < 0.6 ? aiMinimax() : aiEasy();
+  return aiMinimax(); // hard
+}
+
+function aiEasy() {
+  const empty = board.reduce((a, v, i) => (v === null ? [...a, i] : a), []);
+  return empty[Math.floor(Math.random() * empty.length)];
+}
+
+function aiMinimax() {
+  let best = -Infinity, move = -1;
+  for (let i = 0; i < 9; i++) {
+    if (board[i]) continue;
+    board[i] = 'O';
+    const score = minimax(board, 0, false, -Infinity, Infinity);
+    board[i] = null;
+    if (score > best) { best = score; move = i; }
+  }
+  return move;
+}
+
+function minimax(b, depth, isMax, alpha, beta) {
+  const r = quickCheck(b);
+  if (r !== undefined) return r;
+
+  if (isMax) {
+    let best = -Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (b[i]) continue;
+      b[i] = 'O';
+      best = Math.max(best, minimax(b, depth+1, false, alpha, beta));
+      b[i] = null;
+      alpha = Math.max(alpha, best);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (b[i]) continue;
+      b[i] = 'X';
+      best = Math.min(best, minimax(b, depth+1, true, alpha, beta));
+      b[i] = null;
+      beta = Math.min(beta, best);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+function quickCheck(b) {
+  for (const [a,bb,c] of WINS) {
+    if (b[a] && b[a] === b[bb] && b[a] === b[c])
+      return b[a] === 'O' ? 10 : -10;
+  }
+  if (b.every(v => v)) return 0;
+  return undefined;
+}
+
+// ═══════════════════════════════════════════
+//  NEW GAME / RESET
+// ═══════════════════════════════════════════
+function newGame() {
+  board    = Array(9).fill(null);
+  current  = 'X';
+  gameOver = false;
+  aiThinking = false;
+  winLine.classList.remove('show');
+  buildBoard();
+  updateTurnUI();
+  scoreXCard.className = 'score-card active-x';
+  scoreOCard.className = 'score-card';
+}
+
+document.getElementById('btn-new').addEventListener('click', newGame);
+document.getElementById('btn-reset').addEventListener('click', () => {
+  scores = { X: 0, O: 0, D: 0 };
+  updateScores();
+  newGame();
+});
+
+// ═══════════════════════════════════════════
+//  MODE SWITCH
+// ═══════════════════════════════════════════
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    oLabel.textContent = mode === 'ai' ? 'AI' : 'Player 2';
+    diffRow.classList.toggle('hidden', mode !== 'ai');
+    scores = { X: 0, O: 0, D: 0 };
+    updateScores();
+    newGame();
+  });
+});
+
+// ═══════════════════════════════════════════
+//  DIFFICULTY
+// ═══════════════════════════════════════════
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    diff = btn.dataset.diff;
+    newGame();
+  });
+});
+
+// ═══════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  const n = parseInt(e.key);
+  if (n >= 1 && n <= 9) {
+    const map = [6,7,8,3,4,5,0,1,2]; // numpad layout
+    handleClick(map[n-1]);
+  }
+  if (e.key === 'n' || e.key === 'N') newGame();
+});
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+newGame();
+</script>
+</body>
+</html>
